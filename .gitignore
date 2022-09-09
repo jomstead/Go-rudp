@@ -24,3 +24,6 @@ go.work
 .idea/*
 .vscode
 .vscode/*
+
+cover.html
+cover.out
