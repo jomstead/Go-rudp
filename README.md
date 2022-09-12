@@ -6,9 +6,9 @@ Send reliable and unreliable udp packets.  Client and server provide verificatio
 ## How does it work?
 
 ---
-reliable
-sequence
-remote_ack
-remote_bitfield
-payload
+reliable: [0 or 1]
+sequence: [uint32]
+remote_ack: [uint32]
+remote_bitfield: [uint32]
+payload: [user data]
 ---
