@@ -1,11 +1,14 @@
-# Go-rudp
- Reliable UDP
+## Go-rudp - Reliable UDP
 
-Features:
-Send unreliable packets
-Send reliable packets
-Retransmit lost reliable packets
+## Features
+Send reliable and unreliable udp packets.  Client and server provide verification of received reliable packets.
 
-Work in progress:
-Use average verify time to determine retransmit time
-Detect disconnections (no packets received within timeout period, or reliable packet not being verified after several attempts)
+## How does it work?
+
+---
+reliable
+sequence
+remote_ack
+remote_bitfield
+payload
+---
