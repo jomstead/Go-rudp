@@ -1,1 +1,4 @@
+title: [RUDP - Reliable UDP]
+description: [A Reliable UDP library for multiplayer games created in golang.]
+show_downloads: [false]
 theme: jekyll-theme-midnight
