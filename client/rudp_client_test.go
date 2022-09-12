@@ -3,23 +3,18 @@ package client
 import (
 	"net"
 	"testing"
-	"time"
 
-	"github.com/jomstead/go-rudp/packet"
 	"github.com/jomstead/go-rudp/server"
 )
 
 func TestRUDP_ClientReliablePacketsRemovedFromQueue(t *testing.T) {
-	packets := make([]packet.Packet, 3)
-	packets[0] = packet.Packet{Seq: 0, Data: []byte{1}, Timestamp: time.Now().UnixMilli()}
-	packets[1] = packet.Packet{Seq: 1, Data: []byte{2}, Timestamp: time.Now().UnixMilli()}
-	packets[2] = packet.Packet{Seq: 2, Data: []byte{3}, Timestamp: time.Now().UnixMilli()}
+	packets := []uint32{0, 1, 2, 3}
 	conn := RUDPClient{
-		sent_packet_buffer: packets,
+		unverified: packets,
 	}
 	conn.processAck(2, 0b01)
-	if len(conn.sent_packet_buffer) != 1 {
-		t.Error("Verified packets are not being removed from sent packet buffer")
+	if len(conn.unverified) != 2 {
+		t.Error("Verified packets are not being removed from unverified list")
 	}
 }
 
@@ -38,18 +33,17 @@ func TestRUDP_ClientReliablePacketsRetransmissionTest(t *testing.T) {
 	client.Initialize(cc, s)
 
 	// create a fake packet with a timestamp > 200ms ago and add it to the sent packet buffer
-	packets := []packet.Packet{
-		{Seq: 0, Data: []byte{1}, Timestamp: time.Now().UnixMilli() - 201},
-		{Seq: 1, Data: []byte{1}, Timestamp: time.Now().UnixMilli() - 201}}
-	client.sent_packet_buffer = packets
+	packets := []uint32{0, 1, 2, 3, 4}
+	client.unverified = packets
 
-	// TEST: process acks saying we received sequence 1 but not yet seq 0.  Seq 0 should get retransmitted
-	client.processAck(1, 0)
+	verified := client.processAck(3, 0b100) // should be 0 and 3
+	if len(verified) != 2 {
+		t.Error("Process ack did not generate the correct list.")
+	}
 
-	b := make([]byte, 1024)
-	n, _, _ := server.ReadFromUDP(b)
-	if n != 1 {
-		t.Error("Client did not retransmit lost packet.")
+	verified = client.processAck(4, 0b1101) // should be 1 and 4
+	if len(verified) != 2 {
+		t.Error("Process ack did not generate the correct list.")
 	}
 
 }

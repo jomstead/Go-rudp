@@ -4,20 +4,20 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
-	"time"
 
 	"github.com/jomstead/go-rudp/packet"
 )
 
 type RUDPClient struct {
-	conn               *net.UDPConn
-	address            *net.UDPAddr //host:port
-	seq                uint32
-	isConnected        bool
-	remote_seq         uint32
-	remote_acks        packet.Ack
-	temp               []byte          // temp is used to read in a packet from the remote source and processed for reliable UDP, it is then copied to a new buffer without the RUDP bytes for processing outside the api
-	sent_packet_buffer []packet.Packet // keeps a buffer of sent reliable packets, packets get removed from this slice as they are confirm received
+	conn        *net.UDPConn
+	address     *net.UDPAddr //host:port
+	seq         uint32
+	isConnected bool
+	remote_seq  uint32
+	remote_acks packet.Ack
+	temp        []byte   // temp is used to read in a packet from the remote source and processed for reliable UDP, it is then copied to a new buffer without the RUDP bytes for processing outside the api
+	unverified  []uint32 // keeps a list of unverified sequence numbers
+
 }
 
 func (conn *RUDPClient) Close() {
@@ -31,15 +31,14 @@ func (conn RUDPClient) IsConnected() bool {
 	return conn.isConnected
 }
 func (conn *RUDPClient) Initialize(c *net.UDPConn, a *net.UDPAddr) {
-	conn.isConnected = true                                // is the client 'connected'
-	conn.address = a                                       // address of the remote server
-	conn.conn = c                                          // connection to the remote server
-	conn.seq = ^uint32(0)                                  //seq number
-	conn.remote_seq = ^uint32(0)                           // remote seq number
-	conn.sent_packet_buffer = make([]packet.Packet, 0, 16) // queue of outbound reliable packets
-	conn.temp = make([]byte, 1024)                         // buffer used for receiving packets
+	conn.isConnected = true                 // is the client 'connected'
+	conn.address = a                        // address of the remote server
+	conn.conn = c                           // connection to the remote server
+	conn.seq = ^uint32(0)                   //seq number
+	conn.remote_seq = ^uint32(0)            // remote seq number
+	conn.unverified = make([]uint32, 0, 16) // queue of outbound reliable packets
+	conn.temp = make([]byte, 1024)          // buffer used for receiving packets
 	conn.remote_acks = packet.Ack{Data: 0}
-
 }
 
 /* Write sends a packet to the dialed connection */
@@ -66,8 +65,8 @@ func (conn *RUDPClient) Write(payload *[]byte, reliable bool) (int, error) {
 	index += 8
 	data = append(data, *payload...)
 	if reliable {
-		// save packets incase we need to resend them
-		conn.sent_packet_buffer = append(conn.sent_packet_buffer, packet.Packet{Seq: seq, Data: data, Timestamp: time.Now().UnixMilli()})
+		// keep track of unverified packets
+		conn.unverified = append(conn.unverified, seq)
 	}
 	n, err := conn.conn.Write(data)
 	return n - index, err
@@ -111,32 +110,30 @@ func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, addr *net.UDPAddr, err
 
 // ProcessAck takes the acknowledgements from the remote resource and removes packets from the local
 // reliable packet buffer that have been confirmed as sent
-func (conn *RUDPClient) processAck(seq uint32, bitwise uint32) {
+func (conn *RUDPClient) processAck(seq uint32, bitwise uint32) []uint32 {
 	bits := packet.Ack{Data: bitwise}
-	count := len(conn.sent_packet_buffer)
+	count := len(conn.unverified)
 	i := 0
+	verified := make([]uint32, 0)
 	for i < count {
-		p := conn.sent_packet_buffer[i]
+		unver_seq := conn.unverified[i]
 		// check if this packet in the buffer has been verified as delivered.
 		// It is verified if either the sequence number is the same as the received sequence number, or
 		// if the bitwise bit for that packet is set in the bitwise field(which holds the last 32 acknowledgements)
-		if p.Seq == seq || bits.Has(seq-p.Seq-1) {
+		if unver_seq == seq || bits.Has(seq-unver_seq-1) {
 			//overwrite the packet in the buffer with the last packet in the buffer list
-			conn.sent_packet_buffer[i] = conn.sent_packet_buffer[count-1]
+			conn.unverified[i] = conn.unverified[count-1]
 			// then remove the last packet in the list since we moved it to a new spot in the list
 			count--
-			conn.sent_packet_buffer = conn.sent_packet_buffer[0:count]
-		} else {
-			// check if the packet has taken too long to be verified, which means it was probably lost and
-			// will need to be retransmitted
-			if time.Now().UnixMilli()-p.Timestamp > 200 {
-				// it has been 200ms, retransmit the packet and reset the timestamp (use the direct write to the UDP socket)
-				conn.conn.Write(p.Data)
-			}
+			conn.unverified = conn.unverified[0:count]
+			// add the verified packet to the verified list to return
+			verified = append(verified, unver_seq)
 
+		} else {
 			// this packet hasn't been verified, move on to check the next one
 			i++
 		}
 
 	}
+	return verified
 }

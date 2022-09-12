@@ -3,23 +3,19 @@ package server
 import (
 	"net"
 	"testing"
-	"time"
 
 	"github.com/jomstead/go-rudp/client"
-	"github.com/jomstead/go-rudp/packet"
 )
 
 func TestRUDP_ServerReliablePacketsRemovedFromQueue(t *testing.T) {
-	packets := make([]packet.Packet, 3)
-	packets[0] = packet.Packet{Seq: 0, Data: []byte{1}, Timestamp: time.Now().UnixMilli()}
-	packets[1] = packet.Packet{Seq: 1, Data: []byte{2}, Timestamp: time.Now().UnixMilli()}
-	packets[2] = packet.Packet{Seq: 2, Data: []byte{3}, Timestamp: time.Now().UnixMilli()}
+	packets := []uint32{0, 1, 2, 3}
+
 	conn := rUDPConnection{
-		sent_packet_buffer: packets,
+		unverified: packets,
 	}
 	conn.processAck(2, 0b01)
-	if len(conn.sent_packet_buffer) != 1 {
-		t.Error("Verified packets are not being removed from sent packet buffer")
+	if len(conn.unverified) != 2 {
+		t.Error("Verified packets are not being removed from unverified list")
 	}
 }
 
@@ -50,18 +46,15 @@ func TestRUDP_ServerReliablePacketsRetransmissionTest(t *testing.T) {
 		t.Error("ReadFromUDP reported wrong packet size for unreliable packet received")
 	}
 
-	// create a fake packet with a timestamp > 200ms ago and add it to the sent packet buffer
-	packets := []packet.Packet{
-		{Seq: 0, Data: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, Timestamp: time.Now().UnixMilli() - 201},
-		{Seq: 1, Data: []byte{1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, Timestamp: time.Now().UnixMilli() - 201}}
-	server.connections[*client_addr].sent_packet_buffer = packets
-	// process acks for that client saying we received sequence 1 but not yet seq 0.  Seq 0 should get retransmitted
-	server.connections[*client_addr].processAck(1, 0)
+	// create a fake unverifed list
+	packets := []uint32{0, 1}
+	server.connections[*client_addr].unverified = packets
+	server.connections[*client_addr].seq = 1
+	// process acks for that client saying we received sequence 1 but not yet seq 0.  Seq 1 should get sent back as verified
+	verified := server.connections[*client_addr].processAck(1, 0)
 
-	b := make([]byte, 1024)
-	n, _, _ = client.ReadFromUDP(b)
-	if n != 1 {
-		t.Error("Server did not retransmit lost packet.")
+	if len(verified) != 1 {
+		t.Error("Process ack did not generate the correct list.")
 	}
 
 }
