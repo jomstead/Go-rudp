@@ -72,24 +72,21 @@ func (conn *RUDPClient) Write(payload *[]byte, reliable bool) (int, error) {
 	return n - index, err
 }
 
-func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, addr *net.UDPAddr, err error) {
+func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, verified []uint32, addr *net.UDPAddr, err error) {
 	if buffer == nil {
-		return 0, nil, errors.New("buffer cannot be nil")
+		return 0, []uint32{}, nil, errors.New("buffer cannot be nil")
 	}
 	n, addr, err = conn.conn.ReadFromUDP(conn.temp)
 	if err != nil {
-		return n, addr, err
+		return n, []uint32{}, addr, err
 	}
 	if n > 5 && conn.temp[0] == 0 {
 		// unreliable packet
 		ack := binary.BigEndian.Uint32(conn.temp[1:5])
 		ack_bitfield := binary.BigEndian.Uint32(conn.temp[5:9])
-		if len(buffer) < n-9 {
-			return 0, nil, errors.New("buffer too small for packet")
-		}
-		conn.processAck(ack, ack_bitfield)
+		verified = conn.processAck(ack, ack_bitfield)
 		copy(buffer, conn.temp[9:n])
-		return n - 9, addr, err
+		return n - 9, verified, addr, err
 	}
 	if n > 8 && conn.temp[0] == 1 {
 		// reliable packet
@@ -97,15 +94,12 @@ func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, addr *net.UDPAddr, err
 		conn.remote_seq = packet.UpdateAcknowledgements(seq, conn.remote_seq, &conn.remote_acks)
 		ack := binary.BigEndian.Uint32(conn.temp[5:9])
 		ack_bitfield := binary.BigEndian.Uint32(conn.temp[9:13])
-		if len(buffer) < n-13 {
-			return 0, nil, errors.New("buffer too small for packet")
-		}
-		conn.processAck(ack, ack_bitfield)
+		verified = conn.processAck(ack, ack_bitfield)
 		copy(buffer, conn.temp[13:n])
-		return n - 13, addr, err
+		return n - 13, verified, addr, err
 	}
 	// Not sure what this packet is....
-	return 0, addr, errors.New("unexpected RUDP header data")
+	return 0, []uint32{}, addr, errors.New("unexpected RUDP header data")
 }
 
 // ProcessAck takes the acknowledgements from the remote resource and removes packets from the local

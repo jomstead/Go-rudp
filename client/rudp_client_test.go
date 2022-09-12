@@ -78,7 +78,7 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 
 	// read the single packet on the server, now we have the clients address
 	temp := make([]byte, 1024)
-	n, client_addr, err := server.ReadFromUDP(temp)
+	n, _, client_addr, err := server.ReadFromUDP(temp)
 	if err != nil {
 		t.Error("Error receiving packet from client")
 	}
@@ -95,7 +95,7 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 		t.Error("WriteToUDP reported incorrect number of bytes sent when sending reliable packet")
 	}
 
-	n, _, err = server.ReadFromUDP(make([]byte, 1024))
+	n, _, _, err = server.ReadFromUDP(make([]byte, 1024))
 	if err != nil {
 		t.Error("Failed to receive reliable packet from server")
 	}
@@ -106,7 +106,7 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 	// send a packet with an invalid byte[0]
 	server_conn.WriteToUDPAddrPort([]byte{2, 0, 0, 0, 0, 0, 0, 0, 1}, *client_addr)
 	temp = make([]byte, 1024)
-	n, _, err = client.ReadFromUDP(temp)
+	n, _, _, err = client.ReadFromUDP(temp)
 	if err == nil {
 		t.Error("Didn't throw error for invalid packet header byte[0]")
 	}
@@ -116,14 +116,14 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 
 	// Test client read with nil buffer
 	server.WriteToUDP(&[]byte{1, 2, 3}, *client_addr, true)
-	_, _, err = client.ReadFromUDP(nil)
+	_, _, _, err = client.ReadFromUDP(nil)
 	if err == nil {
 		t.Error("Read from UDP into a nil []byte?")
 	}
 
 	// Test client receive reliable
 	data := make([]byte, 1024)
-	n, _, err = client.ReadFromUDP(data)
+	n, _, _, err = client.ReadFromUDP(data)
 	if err != nil {
 		t.Error("Read from UDP failed")
 	}
@@ -133,7 +133,7 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 
 	// Test client receive unreliable
 	server.WriteToUDP(&[]byte{1, 2, 3}, *client_addr, false)
-	n, _, err = client.ReadFromUDP(data)
+	n, _, _, err = client.ReadFromUDP(data)
 	if err != nil {
 		t.Error("Read from UDP failed")
 	}
