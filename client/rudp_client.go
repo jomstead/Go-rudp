@@ -42,7 +42,7 @@ func (conn *RUDPClient) Initialize(c *net.UDPConn, a *net.UDPAddr) {
 }
 
 /* Write sends a packet to the dialed connection */
-func (conn *RUDPClient) Write(payload *[]byte, reliable bool) (int, error) {
+func (conn *RUDPClient) Write(payload *[]byte, reliable bool) (int, uint32, error) {
 	// Create the packet [Reliable][Seq][Remote_seq][remote_acks][Payload]
 	var data []byte
 	var seq uint32
@@ -69,7 +69,7 @@ func (conn *RUDPClient) Write(payload *[]byte, reliable bool) (int, error) {
 		conn.unverified = append(conn.unverified, seq)
 	}
 	n, err := conn.conn.Write(data)
-	return n - index, err
+	return n - index, seq, err
 }
 
 func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, verified []uint32, addr *net.UDPAddr, err error) {

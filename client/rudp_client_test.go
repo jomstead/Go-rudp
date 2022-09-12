@@ -68,7 +68,7 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 	}
 
 	// Client send unreliable
-	n, err := client.Write(&[]byte{1}, false)
+	n, _, err := client.Write(&[]byte{1}, false)
 	if err != nil {
 		t.Error("Error while sending packet to server")
 	}
@@ -87,12 +87,15 @@ func TestRUDP_ClientPacketTest(t *testing.T) {
 	}
 
 	// Client send reliable
-	n, err = client.Write(&[]byte{1}, true)
+	n, seq, err := client.Write(&[]byte{1}, true)
 	if err != nil {
 		t.Error("Failed to send reliable packet")
 	}
 	if n != 1 {
 		t.Error("WriteToUDP reported incorrect number of bytes sent when sending reliable packet")
+	}
+	if seq != 0 {
+		t.Error("Correct sequence number not returned")
 	}
 
 	n, _, _, err = server.ReadFromUDP(make([]byte, 1024))

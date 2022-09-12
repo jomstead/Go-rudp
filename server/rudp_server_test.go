@@ -19,7 +19,7 @@ func TestRUDP_ServerReliablePacketsRemovedFromQueue(t *testing.T) {
 	}
 }
 
-func TestRUDP_ServerReliablePacketsRetransmissionTest(t *testing.T) {
+func TestRUDP_ServerReliablePacketsVerifiedTest(t *testing.T) {
 	// setup the server
 	address := "127.0.0.1:8000"
 	s, _ := net.ResolveUDPAddr("udp4", address)
@@ -85,12 +85,15 @@ func TestRUDP_ServerPacketTest(t *testing.T) {
 	_, _, client_addr, _ := server.ReadFromUDP(temp)
 
 	// test reliable packet
-	n, err := server.WriteToUDP(&[]byte{1}, *client_addr, true)
+	n, seq, err := server.WriteToUDP(&[]byte{1}, *client_addr, true)
 	if err != nil {
 		t.Error("Failed to send reliable packet")
 	}
 	if n != 1 {
 		t.Error("WriteToUDP reports wrong packet size when sending reliable packet")
+	}
+	if seq != 0 {
+		t.Error("Correct sequence number not returned")
 	}
 
 	n, _, _, err = client.ReadFromUDP(make([]byte, 1024))
@@ -102,7 +105,7 @@ func TestRUDP_ServerPacketTest(t *testing.T) {
 	}
 
 	// test unreliable packet
-	n, err = server.WriteToUDP(&[]byte{2}, *client_addr, false)
+	n, _, err = server.WriteToUDP(&[]byte{2}, *client_addr, false)
 	if err != nil {
 		t.Error("Failed to send unreliable packet")
 	}

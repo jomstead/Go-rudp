@@ -21,7 +21,58 @@ When a reliable packet is received, the remote_ack is updated with the sequence 
 
 ## How to use the library
 
+Server.go
 ```Go
-Test
+    // Use the standard net library to setup a listener
+	address := "127.0.0.1:8000"
+	addr, _ := net.ResolveUDPAddr("udp4", address)
+	conn, _ := net.ListenUDP("udp4", s)
+    
+    // create a RUDP server and initialize it with the UDPConn and UDPAddr from the standard net
+	server := RUDPServer{}
+	server.Initialize(conn, addr)
+	defer server.Close()
+
+    // receiving a packet
+    // n is the length of the received packet (payload only)
+    // verified is a list of reliable packets that the client has received since the last read
+    temp := make([]byte, 1024)
+    n, verified, client_addr, err = server.ReadFromUDP(temp)
+
+    // sending a packet
+    // The third argument in WriteToUDP is whether the packet should be reliable 
+    // The second return value is the sequence number used for this packet
+    payload := []byte{1} // payload to send
+    n, sent_seq_number, err := server.WriteToUDP(&payload, *client_addr, true) 
+
+    // When sending and receiving packets, you are responsible for keeping a list of sent packet sequence numbers and removing verified sequences from the list.  See an example implementation in the examples folder.
+
 ```
 
+Client.go
+```Go
+    // Use the standard net library to create a connection
+	address := "127.0.0.1:8000"
+	addr, _ := net.ResolveUDPAddr("udp4", address)
+	conn, _ := net.DialUDP("udp4", nil, s)
+    
+    // create a RUDP client and initialize it with the UDPConn and UDPAddr from the standard net
+	client := RUDPClient{}
+	client.Initialize(conn, addr)
+	defer client.Close()
+
+    // receiving a packet
+    // n is the length of the received packet (payload only)
+    // verified is a list of reliable packets that the remote has received since the last read
+    temp := make([]byte, 1024)
+    n, verified, server_addr, err = client.ReadFromUDP(temp)
+
+    // sending a packet
+    // The third argument in WriteToUDP is whether the packet should be reliable 
+    // The second return value is the sequence number used for this packet
+    payload := []byte{1} // payload to send
+    n, sent_seq_number, err := client.Write(&payload, true) 
+
+    // When sending and receiving packets, you are responsible for keeping a list of sent packet sequence numbers and removing verified sequences from the list.  See an example implementation in the examples folder.
+
+```

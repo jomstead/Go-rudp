@@ -37,7 +37,7 @@ func (conn *RUDPServer) Initialize(c *net.UDPConn, s *net.UDPAddr) {
 }
 
 /* WriteToUDP acts like Write but sends the packet to an UDPAddr */
-func (conn *RUDPServer) WriteToUDP(payload *[]byte, addr netip.AddrPort, reliable bool) (int, error) {
+func (conn *RUDPServer) WriteToUDP(payload *[]byte, addr netip.AddrPort, reliable bool) (int, uint32, error) {
 	// TODO: Get the next sequence number FOR THAT CONNECTION (UDPAddr)
 	client := conn.connections[addr]
 
@@ -68,7 +68,7 @@ func (conn *RUDPServer) WriteToUDP(payload *[]byte, addr netip.AddrPort, reliabl
 	}
 
 	n, err := conn.conn.WriteToUDPAddrPort(data, addr)
-	return n - index, err
+	return n - index, seq, err
 }
 
 func (conn *RUDPServer) Close() {
