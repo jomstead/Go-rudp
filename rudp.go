@@ -1,6 +1,7 @@
 package rudp
 
 import (
+	"errors"
 	"net"
 	"strconv"
 
@@ -19,6 +20,11 @@ import (
  */
 
 func Listen(network string, host string, port uint16) (*server.RUDPServer, error) {
+	switch network {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, errors.New("only udp, udp4, and udp6 network types accepted")
+	}
 	address := host + ":" + strconv.Itoa(int(port))
 	s, err := net.ResolveUDPAddr(network, address)
 	if err != nil {
@@ -34,6 +40,11 @@ func Listen(network string, host string, port uint16) (*server.RUDPServer, error
 }
 
 func Dial(network string, host string, port uint16) (*client.RUDPClient, error) {
+	switch network {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, errors.New("only udp, udp4, and udp6 network types accepted")
+	}
 	address := host + ":" + strconv.Itoa(int(port))
 	s, err := net.ResolveUDPAddr(network, address)
 	if err != nil {

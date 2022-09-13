@@ -23,14 +23,7 @@ When a reliable packet is received, the remote_ack is updated with the sequence 
 
 Server.go
 ```Go
-    // Use the standard net library to setup a listener
-	address := "127.0.0.1:8000"
-	addr, _ := net.ResolveUDPAddr("udp4", address)
-	conn, _ := net.ListenUDP("udp4", s)
-    
-    // create a RUDP server and initialize it with the UDPConn and UDPAddr from the standard net
-	server := RUDPServer{}
-	server.Initialize(conn, addr)
+ 	server, _ := rudp.Listen("udp4", "127.0.0.1", 8000)
 	defer server.Close()
 
     // receiving a packet
@@ -51,14 +44,7 @@ Server.go
 
 Client.go
 ```Go
-    // Use the standard net library to create a connection
-	address := "127.0.0.1:8000"
-	addr, _ := net.ResolveUDPAddr("udp4", address)
-	conn, _ := net.DialUDP("udp4", nil, s)
-    
-    // create a RUDP client and initialize it with the UDPConn and UDPAddr from the standard net
-	client := RUDPClient{}
-	client.Initialize(conn, addr)
+  	client, _ := Dial("udp4", "127.0.0.1", 8000)
 	defer client.Close()
 
     // receiving a packet
