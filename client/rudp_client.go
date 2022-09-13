@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/binary"
 	"errors"
+	"log"
 	"net"
 
 	"github.com/jomstead/go-rudp/packet"
@@ -95,7 +96,8 @@ func (conn RUDPClient) ReadFromUDP(buffer []byte) (n int, verified []uint32, add
 		ack := binary.BigEndian.Uint32(conn.temp[5:9])
 		ack_bitfield := binary.BigEndian.Uint32(conn.temp[9:13])
 		verified = conn.processAck(ack, ack_bitfield)
-		copy(buffer, conn.temp[13:n])
+		x := copy(buffer, conn.temp[13:n])
+		log.Printf("Copied %d bytes", x)
 		return n - 13, verified, addr, err
 	}
 	// Not sure what this packet is....
