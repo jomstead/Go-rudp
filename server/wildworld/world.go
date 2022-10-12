@@ -14,7 +14,7 @@ type World struct {
 }
 
 type Player struct {
-	position math.Vector2
+	Position math.Vector2
 }
 
 func (world *World) Init(net *wildnet.Net) {
